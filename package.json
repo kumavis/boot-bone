@@ -1,0 +1,20 @@
+{
+  "name": "boot-bone",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "brfs": "^1.4.3",
+    "browserify": "^14.5.0",
+    "client-sw-ready-event": "^3.4.0",
+    "express": "^4.16.2",
+    "leveljs": "0.0.0-a1",
+    "sw-stream": "^2.0.0",
+    "watchify": "^3.9.0"
+  }
+}
