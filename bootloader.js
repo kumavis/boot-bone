@@ -18,7 +18,7 @@ connectionListener.on('remote', (portStream, messageEvent) => {
 
 
 //
-// connect to fs
+// connect to db
 //
 
 const db = createDb()
@@ -30,16 +30,14 @@ db.put('/xyz', Buffer.from('i n   y o u r   b r o w s e r'), console.log)
 
 global.addEventListener('fetch', (event) => {
   const req = event.request
-  if (req.method !== 'GET') {
-    console.log('not found')
-    event.respondWith(new Response('not found',{ status: 404 }))
-  }
+  const url = new URL(req.url)
 
+  // only intercept same domain
+  if (url.origin !== location.origin) return
+
+  // respond with local content
   event.respondWith((async () => {
-    const url = new URL(req.url)
     const path = url.pathname
-    // const body = `will return data for "${path}"`
-    // const body = await pify(fs.readFile.bind(fs))(path)
     const body = await db.get(path)
     console.log(body)
     return new Response(body)
