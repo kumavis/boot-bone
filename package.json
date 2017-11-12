@@ -10,14 +10,17 @@
   "license": "ISC",
   "dependencies": {
     "browserify": "^14.5.0",
+    "dnode-p": "^1.0.0",
     "express": "^4.16.2",
     "level-js": "^2.2.4",
     "leveljs": "0.0.0-a1",
     "levelup": "^2.0.0",
     "memdown": "^1.4.1",
     "pify": "^3.0.0",
+    "streams2": "^0.1.1",
     "sw-controller": "^1.0.2",
     "sw-stream": "^2.0.2",
+    "through2": "^2.0.3",
     "watchify": "^3.9.0"
   }
 }

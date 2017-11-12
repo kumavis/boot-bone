@@ -1,5 +1,8 @@
+const pipe = require('pump')
 const SwController = require('sw-controller')
 const createSwStream = require('sw-stream')
+// const dnode = require('dnode-p')
+const dnode = require('dnode')
 
 module.exports = createBootBone
 
@@ -14,14 +17,25 @@ function createBootBone() {
     intervalDelay,
   })
 
+  // establish connection
   background.once('ready', () => {
-    console.log('background ready')
+    console.log('client: background ready')
     const swStream = createSwStream({
-      serviceWorker: background.controller,
+      serviceWorker: background.getWorker(),
       context: 'master',
     })
+
+    const guest = createDnode()
+
+    pipe(
+      swStream,
+      guest,
+      swStream,
+      console.error
+    )
   })
-  background.on('updatefound', () => window.location.reload())
+  background.on('updatefound', () => console.log('client: update found'))
+  // background.on('updatefound', () => window.location.reload())
   background.on('error', console.error)
 
   background.startWorker()
@@ -30,4 +44,16 @@ function createBootBone() {
     background,
   }
 
+}
+
+function createDnode() {
+  const guest = dnode({
+    hello: () => console.log('client: host says hello')
+  })
+  guest.once('remote', (remoteHost) => {
+    global.remoteHost = remoteHost
+    console.log('client: dnode connected')
+  })
+  global.guest = guest
+  return guest
 }

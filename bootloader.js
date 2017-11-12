@@ -1,20 +1,10 @@
+const pipe = require('pump')
 const pify = require('pify')
+
+// const dnode = require('dnode-p')
+const dnode = require('dnode')
 const SwGlobalListener = require('sw-stream/lib/sw-global-listener.js')
 const createDb = require('./db')
-
-
-//
-// establish connection
-//
-
-const connectionListener = new SwGlobalListener(global)
-global.addEventListener('message', console.log)
-
-console.log('bootloader online')
-
-connectionListener.on('remote', (portStream, messageEvent) => {
-  console.log('page connection established')
-})
 
 
 //
@@ -43,3 +33,42 @@ global.addEventListener('fetch', (event) => {
     return new Response(body)
   })())
 })
+
+//
+// setup remote interface
+//
+
+
+//
+// establish connection
+//
+
+const connectionListener = new SwGlobalListener(global)
+
+console.log('bootloader: online')
+
+connectionListener.on('remote', (portStream, messageEvent) => {
+  console.log('bootloader: page connection established')
+  const host = createDnode()
+  pipe(
+    portStream,
+    host,
+    portStream,
+    console.error
+  )
+})
+
+function createDnode() {
+  const host = dnode({
+    // direct db access
+    put: db.put.bind(db),
+    get: db.get.bind(db),
+  })
+
+  host.on('remote', (guest) => {
+    console.log('bootloader: dnode connected')
+    self.remoteGuest = guest
+  })
+
+  return host
+}
