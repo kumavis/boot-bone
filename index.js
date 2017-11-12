@@ -1,8 +1,9 @@
 const pipe = require('pump')
 const SwController = require('sw-controller')
 const createSwStream = require('sw-stream')
-// const dnode = require('dnode-p')
 const dnode = require('dnode')
+const pify = require('pify')
+const { dnodeGetFirstRemote, mapObject } = require('./util')
 
 module.exports = createBootBone
 
@@ -16,7 +17,7 @@ function createBootBone () {
   })
 
   // establish connection
-  background.once('ready', () => {
+  background.once('ready', async () => {
     console.log('client: background ready')
     const swStream = createSwStream({
       serviceWorker: background.getWorker(),
@@ -31,7 +32,14 @@ function createBootBone () {
       swStream,
       console.error
     )
+
+    let remoteHost = await dnodeGetFirstRemote(guest)
+    // add promise support
+    remoteHost = mapObject(remoteHost, (key, value) => pify(value))
+    global.remoteHost = remoteHost
+    console.log('client: dnode connected')
   })
+
   background.on('updatefound', () => console.log('client: update found'))
   // background.on('updatefound', () => window.location.reload())
   background.on('error', console.error)
@@ -46,11 +54,6 @@ function createBootBone () {
 function createDnode () {
   const guest = dnode({
     hello: () => console.log('client: host says hello')
-  })
-  guest.once('remote', (remoteHost) => {
-    global.remoteHost = remoteHost
-    console.log('client: dnode connected')
-  })
-  global.guest = guest
+  }, { emit: 'object' })
   return guest
 }

@@ -1,17 +1,32 @@
 const pipe = require('pump')
 const pify = require('pify')
+const defer = require('pull-defer')
+const ReadableStream = require('readable-stream')
+const cbify = require('cb-ify')
+const { dnodeGetFirstRemote, mapObject } = require('./util')
+const noop = function(){}
 
-// const dnode = require('dnode-p')
 const dnode = require('dnode')
 const SwGlobalListener = require('sw-stream/lib/sw-global-listener.js')
 const createDb = require('./db')
 
+// listen for clients
+const remoteConnectionQueue = new ReadableStream({ objectMode: true })
+remoteConnectionQueue._read = noop
+setupRemoteInterface((portStream) => {
+  remoteConnectionQueue.push(portStream)
+})
+
+// listen for requests
+const fetchRequestQueue = new ReadableStream({ objectMode: true })
+fetchRequestQueue._read = noop
+global.addEventListener('fetch', (event) => {
+  fetchRequestQueue.push(event)
+})
+
 start().then(console.log, console.error)
 
 async function start () {
-
-  // listen for clients
-  setupRemoteInterface()
 
   // setup dbs
   const db = createDb()
@@ -35,6 +50,39 @@ async function start () {
   // setup asset server
   setupAssetServer(currentDisk)
 
+  // establish connections with clients
+  remoteConnectionQueue.on('data', async (portStream) => {
+    const host = createRemoteInterface()
+    pipe(
+      portStream,
+      host,
+      portStream,
+      console.error
+    )
+    const remoteClient = await dnodeGetFirstRemote(host)
+    console.log('bootloader: dnode connected')
+  })
+
+
+  function createRemoteInterface () {
+    let interface = {
+      // root db access
+      put: db.put.bind(db),
+      get: db.get.bind(db),
+      // meta
+      metaPut: meta.put.bind(meta),
+      metaGet: meta.get.bind(meta),
+      // currentDisk
+      currentDiskPut: currentDisk.put.bind(currentDisk),
+      currentDiskGet: currentDisk.get.bind(currentDisk),
+    }
+    // add promise support
+    interface = mapObject(interface, (key, value) => cbify(value))
+    const host = dnode(interface, { emit: 'object' })
+
+    return host
+  }
+
   async function createNewVersion (name) {
     const disk = simpleSublevel(db, name)
     return disk
@@ -47,7 +95,7 @@ async function start () {
 
 // intercept requests from page
 function setupAssetServer (db) {
-  global.addEventListener('fetch', (event) => {
+  fetchRequestQueue.on('data', (event) => {
     const req = event.request
     const url = new URL(req.url)
 
@@ -71,34 +119,9 @@ function setupAssetServer (db) {
 // establish connection
 //
 
-function setupRemoteInterface(){
+function setupRemoteInterface(handler){
   const connectionListener = new SwGlobalListener(global)
-  connectionListener.on('remote', (portStream, messageEvent) => {
-    console.log('bootloader: page connection established')
-    const host = createDnode()
-    pipe(
-      portStream,
-      host,
-      portStream,
-      console.error
-    )
-  })
-
-}
-
-function createDnode (db) {
-  const host = dnode({
-    // direct db access
-    // put: db.put.bind(db),
-    // get: db.get.bind(db)
-  })
-
-  host.on('remote', (guest) => {
-    console.log('bootloader: dnode connected')
-    self.remoteGuest = guest
-  })
-
-  return host
+  connectionListener.on('remote', handler)
 }
 
 async function loadDefaultInitializer (db) {
