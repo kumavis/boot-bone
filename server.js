@@ -11,7 +11,6 @@ app.get('/', (req, res) => {
 serveBundle(app, '/initialize.js', createBundle(require.resolve('./initialize.js')))
 serveBundle(app, '/bootloader.js', createBundle(require.resolve('./bootloader.js')))
 
-
 app.listen(3000, () => {
   console.log('listening on 3000')
 })

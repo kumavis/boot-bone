@@ -6,15 +6,13 @@ const dnode = require('dnode')
 
 module.exports = createBootBone
 
-
-function createBootBone() {
-  
+function createBootBone () {
   const intervalDelay = Math.floor(Math.random() * (30000 - 1000)) + 1000
   const background = new SwController({
     fileName: '/bootloader.js',
     keepAlive: false,
     wakeUpInterval: 30000,
-    intervalDelay,
+    intervalDelay
   })
 
   // establish connection
@@ -22,7 +20,7 @@ function createBootBone() {
     console.log('client: background ready')
     const swStream = createSwStream({
       serviceWorker: background.getWorker(),
-      context: 'master',
+      context: 'master'
     })
 
     const guest = createDnode()
@@ -41,12 +39,11 @@ function createBootBone() {
   background.startWorker()
 
   return {
-    background,
+    background
   }
-
 }
 
-function createDnode() {
+function createDnode () {
   const guest = dnode({
     hello: () => console.log('client: host says hello')
   })

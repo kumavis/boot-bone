@@ -3,9 +3,8 @@ const watchify = require('watchify')
 
 module.exports = {
   serveBundle,
-  createBundle,
+  createBundle
 }
-
 
 function serveBundle (server, path, bundle) {
   server.get(path, function (req, res) {
@@ -15,14 +14,13 @@ function serveBundle (server, path, bundle) {
 }
 
 function createBundle (entryPoint) {
-
   var bundleContainer = {}
 
   var bundler = browserify({
     entries: [entryPoint],
     cache: {},
     packageCache: {},
-    plugin: [watchify],
+    plugin: [watchify]
   // }).transform('babelify')
   })
 
@@ -42,5 +40,4 @@ function createBundle (entryPoint) {
       bundleContainer.latest = result.toString()
     })
   }
-
 }
