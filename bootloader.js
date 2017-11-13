@@ -3,7 +3,6 @@ const pify = require('pify')
 const defer = require('pull-defer')
 const ReadableStream = require('readable-stream')
 const cbify = require('cb-ify')
-const objFlatten = require('obj-flatten')
 const { dnodeGetFirstRemote, mapObject } = require('./util')
 const noop = function(){}
 
@@ -32,6 +31,8 @@ async function start () {
   // setup dbs
   const db = createDb()
   const meta = simpleSublevel(db, 'meta')
+  global.db = db
+  global.meta = meta
   let version = await gentleGet(meta, 'version')
   let currentDisk
 
@@ -81,8 +82,6 @@ async function start () {
       currentDiskPut: currentDisk.put.bind(currentDisk),
       currentDiskGet: currentDisk.get.bind(currentDisk),
     }
-    // add nested method support
-    interface = objFlatten(interface)
     // add promise support
     interface = mapObject(interface, (key, value) => cbify(value))
     const host = dnode(interface, { emit: 'object' })
@@ -147,8 +146,8 @@ async function preloadResource (db, path) {
 
 function simpleSublevel (db, prefix) {
   return {
-    put: (key, value) => db.put(prefix + '/' + key, value),
-    get: (key) => db.get(prefix + '/' + key)
+    put: (key, value, opts, cb) => db.put(prefix + '/' + key, value, opts, cb),
+    get: (key, opts, cb) => db.get(prefix + '/' + key, opts, cb),
   }
 }
 
