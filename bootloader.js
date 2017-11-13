@@ -69,18 +69,20 @@ async function start () {
   function createRemoteInterface () {
     let interface = {
       // root db access
-      put: db.put.bind(db),
-      get: db.get.bind(db),
+      root: {
+        put: db.put.bind(db),
+        get: db.get.bind(db),
+      },
       // meta
-      metaPut: meta.put.bind(meta),
-      metaGet: meta.get.bind(meta),
       meta: {
         put: meta.put.bind(meta),
         get: meta.get.bind(meta),
       },
       // currentDisk
-      currentDiskPut: currentDisk.put.bind(currentDisk),
-      currentDiskGet: currentDisk.get.bind(currentDisk),
+      current: {
+        put: currentDisk.put.bind(currentDisk),
+        get: currentDisk.get.bind(currentDisk),
+      }
     }
     // add promise support
     interface = mapObject(interface, (key, value) => cbify(value))
