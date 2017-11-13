@@ -3,6 +3,7 @@ const SwController = require('sw-controller')
 const createSwStream = require('sw-stream')
 const dnode = require('dnode')
 const pify = require('pify')
+const objUnflatten = require('obj-unflatten')
 const { dnodeGetFirstRemote, mapObject } = require('./util')
 
 module.exports = createBootBone
@@ -33,9 +34,12 @@ function createBootBone () {
       console.error
     )
 
+    // get host and layer compat
     let remoteHost = await dnodeGetFirstRemote(guest)
     // add promise support
     remoteHost = mapObject(remoteHost, (key, value) => pify(value))
+    // add nested method support
+    remoteHost = objUnflatten(remoteHost)
     global.remoteHost = remoteHost
     console.log('client: dnode connected')
   })

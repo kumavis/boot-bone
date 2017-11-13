@@ -3,6 +3,7 @@ const pify = require('pify')
 const defer = require('pull-defer')
 const ReadableStream = require('readable-stream')
 const cbify = require('cb-ify')
+const objFlatten = require('obj-flatten')
 const { dnodeGetFirstRemote, mapObject } = require('./util')
 const noop = function(){}
 
@@ -72,10 +73,16 @@ async function start () {
       // meta
       metaPut: meta.put.bind(meta),
       metaGet: meta.get.bind(meta),
+      meta: {
+        put: meta.put.bind(meta),
+        get: meta.get.bind(meta),
+      },
       // currentDisk
       currentDiskPut: currentDisk.put.bind(currentDisk),
       currentDiskGet: currentDisk.get.bind(currentDisk),
     }
+    // add nested method support
+    interface = objFlatten(interface)
     // add promise support
     interface = mapObject(interface, (key, value) => cbify(value))
     const host = dnode(interface, { emit: 'object' })
