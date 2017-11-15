@@ -10,8 +10,9 @@ const pify = require('pify')
 module.exports = createIpfsPublisher
 
 
-function createIpfsPublisher() {
+function createIpfsPublisher({ target }) {
   const ipfsApi = IpfsAPI('ipfs.infura.io', '443', { protocol: 'https' })
+  // const ipfsApi = IpfsAPI('localhost', '5001', { protocol: 'http' })
   global.ipfsApi = ipfsApi
 
   const ipfs = new Ipfs({
@@ -23,7 +24,7 @@ function createIpfsPublisher() {
     }
   })
   const ipfsReady = new Promise((resolve) => ipfs.once('ready', resolve))
-  
+
   ipfs.on('ready', (...args) => console.log('ipfs ready', args))
   ipfs.on('error', (...args) => console.log('ipfs error', args))
   ipfs.on('init', (...args) => console.log('ipfs init', args))
@@ -34,7 +35,7 @@ function createIpfsPublisher() {
   return {
     ipfsApi,
     resolveLatest: async () => {
-      const result = await ipfsApi.name.resolve('/ipns/QmNadfNHENpEu5GDwKSJBK19tXf9i9K4R6i8FGe1Xraagg')
+      const result = await ipfsApi.name.resolve(target)
       const path = result.Path
       const cid = path.slice('/ipfs/'.length)
       return cid
@@ -59,7 +60,7 @@ function createIpfsPublisher() {
       })
 
       const pipelineComplete = pify(endOfStream)(fileWriteStream, { readable: false })
-      
+
       pipe(
         // read all nodes
         filesStream,
