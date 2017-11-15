@@ -3,12 +3,13 @@ const pify = require('pify')
 const defer = require('pull-defer')
 const ReadableStream = require('readable-stream')
 const cbify = require('cb-ify')
+const createIpfsPublisher = require('./ipfsPublisher')
 const { dnodeGetFirstRemote, mapObject } = require('./util')
 const noop = function(){}
 
 const dnode = require('dnode')
 const SwGlobalListener = require('sw-stream/lib/sw-global-listener.js')
-const createDb = require('./db')
+const createMultidisk = require('./multidisk')
 
 // listen for clients
 const remoteConnectionQueue = new ReadableStream({ objectMode: true })
@@ -24,33 +25,39 @@ global.addEventListener('fetch', (event) => {
   fetchRequestQueue.push(event)
 })
 
-start().then(console.log, console.error)
+start().catch(console.error)
 
 async function start () {
 
+  const publisher = createIpfsPublisher()
+
   // setup dbs
-  const db = createDb()
-  const meta = simpleSublevel(db, 'meta')
-  global.db = db
-  global.meta = meta
-  let version = await gentleGet(meta, 'version')
+  const multidisk = createMultidisk()
+  global.multidisk = multidisk
+  const metaDb = multidisk.getDisk('meta')
+
+  let versionName = await multidisk.getCurrentDiskName()
+  const isInitialized = Boolean(versionName)
   let currentDisk
 
   // first time init
-  if (version === null) {
-    console.log('no version found - initializing v0')
-    version = 'v0'
-    currentDisk = await createNewVersion(version)
-    await loadDefaultInitializer(currentDisk)
-    await currentDisk.put('/xyz', Buffer.from('i n   y o u r   b r o w s e r'), console.log)
-    await setCurrentVersion(version)
+  if (isInitialized) {
+    console.log(`loaded version: "${versionName}"`)
+    currentDisk = multidisk.getDisk(versionName)
   } else {
-    console.log(`version: "${version}"`)
-    currentDisk = simpleSublevel(db, version)
+    console.log('intializing...')
+    versionName = await publisher.resolveLatest()
+    console.log('resolved latest version:', versionName)
+    currentDisk = await multidisk.createNewDisk(versionName)
+    console.log('downloading...')
+    await publisher.downloadVersion(versionName, currentDisk)
+    console.log('download complete.')
+    await multidisk.setCurrentDisk(versionName)
   }
 
   // setup asset server
   setupAssetServer(currentDisk)
+  // setupGithubAssetServer(currentDisk)
 
   // establish connections with clients
   remoteConnectionQueue.on('data', async (portStream) => {
@@ -68,21 +75,21 @@ async function start () {
 
   function createRemoteInterface () {
     let interface = {
-      // root db access
-      root: {
-        put: db.put.bind(db),
-        get: db.get.bind(db),
-      },
-      // meta
-      meta: {
-        put: meta.put.bind(meta),
-        get: meta.get.bind(meta),
-      },
-      // currentDisk
-      current: {
-        put: currentDisk.put.bind(currentDisk),
-        get: currentDisk.get.bind(currentDisk),
-      }
+      // // root db access
+      // root: {
+      //   put: db.put.bind(db),
+      //   get: db.get.bind(db),
+      // },
+      // // meta
+      // meta: {
+      //   put: meta.put.bind(meta),
+      //   get: meta.get.bind(meta),
+      // },
+      // // currentDisk
+      // current: {
+      //   put: currentDisk.put.bind(currentDisk),
+      //   get: currentDisk.get.bind(currentDisk),
+      // },
     }
     // add promise support
     interface = mapObject(interface, (key, value) => cbify(value))
@@ -91,14 +98,19 @@ async function start () {
     return host
   }
 
-  async function createNewVersion (name) {
-    const disk = simpleSublevel(db, name)
-    return disk
-  }
+}
 
-  async function setCurrentVersion (name) {
-    return await meta.put('version', name)
-  }
+async function fetchJson(url) {
+  const res = await fetch(url)
+  const result = await res.json()
+  return result
+}
+
+async function getGithubRepoBranch(repo, branch = 'master') {
+  const res = await fetch(`https://api.github.com/repos/${repo}/branches/${branch}`)
+  const result = await res.json()
+  console.log(result)
+  return result
 }
 
 // intercept requests from page
@@ -144,19 +156,4 @@ async function preloadResource (db, path) {
   const res = await fetch(path)
   const body = await res.text()
   await db.put(path, body)
-}
-
-function simpleSublevel (db, prefix) {
-  return {
-    put: (key, value, opts, cb) => db.put(prefix + '/' + key, value, opts, cb),
-    get: (key, opts, cb) => db.get(prefix + '/' + key, opts, cb),
-  }
-}
-
-async function gentleGet (db, key) {
-  try {
-    return await db.get(key)
-  } catch (err) {
-    return null
-  }
 }

@@ -13,6 +13,7 @@
     "cb-ify": "^1.1.0",
     "dnode": "^1.2.2",
     "express": "^4.16.2",
+    "ipfs-api": "^15.1.0",
     "level-js": "^2.2.4",
     "leveljs": "0.0.0-a1",
     "levelup": "^2.0.0",
